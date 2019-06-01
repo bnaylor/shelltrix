@@ -3,5 +3,3 @@
 
   Scoot back in cmdline to correct an argument, tab knows how to complete
   *that* instead of just what's at the end of the line.
-
-- signal handling
