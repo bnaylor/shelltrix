@@ -26,12 +26,25 @@ func honkSubSuggester(cmdline string) *[]prompt.Suggest {
 	}
 }
 
+func honkHelp(args []string) *string {
+	text :=
+		`To show off its skills, this German shepherd (German for 'hump')
+will lick and lick back on demand. A bit like an enthusiastic monkey
+a flock of this dachshund will gobble the meat up with every bite.
+
+But what the hell is a dachshund?`
+
+	return &text
+}
+
 func main() {
 	shelltrix.CommandAdd(shelltrix.Command{
 		Name:        "honk",
 		Description: "The sound a goose makes",
 		Handler:     hndHonk,
 		Secondary:   honkSubSuggester,
+		Aliases:     []string{"blart"},
+		ExtraHelp:   honkHelp,
 	})
 
 	shelltrix.RunShell()

@@ -14,13 +14,19 @@ type CommandHandler func([]string) error
 // SecondarySuggester defines a function for replacing suggestions for subcommands
 type SecondarySuggester func(string) *[]prompt.Suggest
 
+// ExtraHelpText defines a function for commands to produce more help text
+type ExtraHelpText func([]string) *string
+
 // Command maps commands to handlers
+//    Required: Name, Handler, Description
+//    Optional: Aliases, SecondarySuggester, ExtraHelp
 type Command struct {
 	Name        string
 	Handler     CommandHandler
 	Description string
 	Aliases     []string
-	Secondary   SecondarySuggester // optional
+	Secondary   SecondarySuggester
+	ExtraHelp   ExtraHelpText
 }
 
 var (
@@ -55,9 +61,25 @@ func handleExit(args []string) error {
 
 // this can't actually be referenced from the map.  okay, go?
 func handleHelp(args []string) error {
-	var c = commandsAll
-	for name, val := range c {
-		fmt.Printf("  %s : %s\n", name, val.Description)
+	if len(args) > 1 {
+		base := args[1]
+		cmd, exists := commandsAll[base]
+		if exists {
+			h := cmd.ExtraHelp
+			if h != nil {
+				text := h(args[1:])
+				fmt.Println(*text)
+			} else {
+				fmt.Printf("No more help for '%s'\n", base)
+			}
+		} else {
+			fmt.Printf("I dunno about '%s'.\n", base)
+		}
+	} else {
+		var c = commandsAll
+		for name, val := range c {
+			fmt.Printf("  %s : %s\n", name, val.Description)
+		}
 	}
 	return nil
 }
