@@ -46,6 +46,9 @@ var (
 	// Dynamic list of all commands
 	commandsAll = map[string]Command{}
 
+	// Reverse map of alises -> commands
+	commandAliases = map[string]Command{}
+
 	// Cache toplevel suggestions
 	suggestionsTop []prompt.Suggest
 
@@ -73,12 +76,29 @@ func handleHelp(args []string) error {
 				fmt.Printf("No more help for '%s'\n", base)
 			}
 		} else {
-			fmt.Printf("I dunno about '%s'.\n", base)
+			// Maybe it's an alias?
+			alias := aliasSearch(base)
+			if alias != nil {
+				newargs := args[2:]
+				retry := []string{"help", alias.Name}
+				retry = append(retry, newargs...)
+				fmt.Printf("(FYI: '%s' is an alias for '%s'.)\n\n", base, alias.Name)
+				handleHelp(retry)
+			} else {
+				fmt.Printf("I dunno about '%s'.\n", base)
+			}
 		}
 	} else {
 		var c = commandsAll
 		for name, val := range c {
-			fmt.Printf("  %s : %s\n", name, val.Description)
+			fmt.Printf("  %s : %s", name, val.Description)
+			if val.Aliases != nil {
+				fmt.Printf("   Aliases: ")
+				for _, a := range val.Aliases {
+					fmt.Printf("%s ", a)
+				}
+			}
+			fmt.Printf("\n")
 		}
 	}
 	return nil
@@ -121,6 +141,10 @@ func initSuggestions() {
 		t := prompt.Suggest{Text: name, Description: val.Description}
 		suggestionsTop = append(suggestionsTop, t)
 	}
+	for name, val := range commandAliases {
+		t := prompt.Suggest{Text: name, Description: val.Name}
+		suggestionsTop = append(suggestionsTop, t)
+	}
 	suggestionsTop = append(suggestionsTop, prompt.Suggest{Text: "?",
 		Description: "Type 'help' to list commands"})
 	suggestionsTop = append(suggestionsTop, prompt.Suggest{Text: "help",
@@ -131,9 +155,40 @@ func reinitSuggestions() {
 	initSuggestions()
 }
 
+// aliasAdd adds an alias for a Command if it doesn't already exist
+func aliasAdd(base Command, alias string) {
+	existing, exists := commandAliases[alias]
+	if exists {
+		fmt.Printf("Alias '%s' defined for command '%s', ", alias, base.Name)
+		fmt.Printf("but already exists under '%s'. Ignored.\n", existing.Name)
+	} else {
+		commandAliases[alias] = base
+	}
+}
+
+// addDefinedAliases sets up any aliases that might be defined in a Command
+func addDefinedAliases(cmd Command) {
+	if cmd.Aliases != nil {
+		for _, a := range cmd.Aliases {
+			aliasAdd(cmd, a)
+		}
+	}
+}
+
+// aliasSearch resolves a potential alias to a command
+func aliasSearch(c string) *Command {
+	entry, exists := commandAliases[c]
+	if exists {
+		return &entry
+	}
+	return nil
+}
+
+// initCommands initializes base commands
 func initCommands() {
 	for name, val := range commandsBuiltIn {
 		commandsAll[name] = val
+		addDefinedAliases(val)
 	}
 }
 
@@ -141,27 +196,13 @@ func initCommands() {
 func CommandAdd(cmd Command) {
 	commandsExt[cmd.Name] = cmd
 	commandsAll[cmd.Name] = cmd
+	addDefinedAliases(cmd)
 	reinitSuggestions()
 }
 
 func initShell() {
 	initCommands()
 	initSuggestions()
-}
-
-// Search through all commands to see if 'c' is an alias to one of them.
-// Would obviously be better to build a hash of aliases at init time. TBD
-func searchAliases(c string) *Command {
-	for _, val := range commandsAll {
-		if val.Aliases != nil {
-			for _, a := range val.Aliases {
-				if a == c {
-					return &val
-				}
-			}
-		}
-	}
-	return nil
 }
 
 // RunShell starts the input loop and takes over executions
@@ -185,7 +226,7 @@ func RunShell() {
 				// help is special..
 				handleHelp(cmdargs)
 			} else if cmd != "" {
-				aliasedCmd := searchAliases(cmd)
+				aliasedCmd := aliasSearch(cmd)
 				if aliasedCmd != nil {
 					aliasedCmd.Handler(cmdargs)
 				} else {
