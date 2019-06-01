@@ -37,6 +37,11 @@ But what the hell is a dachshund?`
 	return &text
 }
 
+func hndLonger(args []string) error {
+	fmt.Println("That was something else.")
+	return nil
+}
+
 func main() {
 	shelltrix.CommandAdd(shelltrix.Command{
 		Name:        "honk",
@@ -45,6 +50,11 @@ func main() {
 		Secondary:   honkSubSuggester,
 		Aliases:     []string{"blart"},
 		ExtraHelp:   honkHelp,
+	})
+	shelltrix.CommandAdd(shelltrix.Command{
+		Name:        "longercmd",
+		Description: "This is to test help formatting",
+		Handler:     hndLonger,
 	})
 
 	shelltrix.RunShell()

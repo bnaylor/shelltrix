@@ -29,6 +29,11 @@ type Command struct {
 	ExtraHelp   ExtraHelpText
 }
 
+type HelpFormatHints struct {
+	longestCommand     int
+	longestDescription int
+}
+
 var (
 	// Built-in commands only.  Users add commands with CommandAdd
 	commandsBuiltIn = map[string]Command{
@@ -36,7 +41,7 @@ var (
 			Name:        "exit",
 			Handler:     handleExit,
 			Description: "Exit this program",
-			Aliases:     []string{"quit", "bail"},
+			Aliases:     []string{"quit", "q"},
 		},
 	}
 
@@ -54,6 +59,9 @@ var (
 
 	// Active suggestion list
 	suggestions *[]prompt.Suggest
+
+	// Compute & cache some hints for help display
+	helpHints HelpFormatHints
 )
 
 // =-= HANDLERS =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -91,9 +99,10 @@ func handleHelp(args []string) error {
 	} else {
 		var c = commandsAll
 		for name, val := range c {
-			fmt.Printf("  %s : %s", name, val.Description)
+			fmt.Printf("  %*s : %-*s", helpHints.longestCommand, name,
+				helpHints.longestDescription, val.Description)
 			if val.Aliases != nil {
-				fmt.Printf("   Aliases: ")
+				fmt.Printf("   | Aliases: ")
 				for _, a := range val.Aliases {
 					fmt.Printf("%s ", a)
 				}
@@ -192,17 +201,31 @@ func initCommands() {
 	}
 }
 
+// scanHelp runs through all the defined help strings and caches formatting hints
+func scanHelp() {
+	for name, val := range commandsAll {
+		if len(name) > helpHints.longestCommand {
+			helpHints.longestCommand = len(name)
+		}
+		if len(val.Description) > helpHints.longestDescription {
+			helpHints.longestDescription = len(val.Description)
+		}
+	}
+}
+
 // CommandAdd adds a new command to the shell
 func CommandAdd(cmd Command) {
 	commandsExt[cmd.Name] = cmd
 	commandsAll[cmd.Name] = cmd
 	addDefinedAliases(cmd)
 	reinitSuggestions()
+	scanHelp()
 }
 
 func initShell() {
 	initCommands()
 	initSuggestions()
+	scanHelp()
 }
 
 // RunShell starts the input loop and takes over executions
@@ -222,7 +245,7 @@ func RunShell() {
 			h, exists := commandsAll[cmd]
 			if exists {
 				h.Handler(cmdargs)
-			} else if cmd == "help" {
+			} else if cmd == "help" || cmd == "?" {
 				// help is special..
 				handleHelp(cmdargs)
 			} else if cmd != "" {
