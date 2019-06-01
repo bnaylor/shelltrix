@@ -233,7 +233,14 @@ func RunShell() {
 
 	initShell()
 
-	p := prompt.New(nil, completer)
+	p := prompt.New(nil, completer,
+		prompt.OptionAddKeyBind(prompt.KeyBind{
+			Key: prompt.ControlC,
+			Fn: func(buf *prompt.Buffer) {
+				fmt.Println("interrupted")
+				os.Exit(130)
+			}}),
+	)
 
 	// input loop
 	for {
