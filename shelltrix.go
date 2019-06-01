@@ -1,10 +1,5 @@
 package shelltrix
 
-// TBD : aliases.  Map 'quit' to exit as metadata instead of a separate command
-// TBD : inline completions.  Scoot back in cmdline to correct an argument,
-//       tab knows how to complete *that* instead of just what's at the end
-//       of the line.
-
 import (
 	"fmt"
 	"os"
@@ -24,6 +19,7 @@ type Command struct {
 	Name        string
 	Handler     CommandHandler
 	Description string
+	Aliases     []string
 	Secondary   SecondarySuggester // optional
 }
 
@@ -34,11 +30,7 @@ var (
 			Name:        "exit",
 			Handler:     handleExit,
 			Description: "Exit this program",
-		},
-		"quit": {
-			Name:        "quit",
-			Handler:     handleExit,
-			Description: "Exit this program",
+			Aliases:     []string{"quit", "bail"},
 		},
 	}
 
@@ -135,6 +127,21 @@ func initShell() {
 	initSuggestions()
 }
 
+// Search through all commands to see if 'c' is an alias to one of them.
+// Would obviously be better to build a hash of aliases at init time. TBD
+func searchAliases(c string) *Command {
+	for _, val := range commandsAll {
+		if val.Aliases != nil {
+			for _, a := range val.Aliases {
+				if a == c {
+					return &val
+				}
+			}
+		}
+	}
+	return nil
+}
+
 // RunShell starts the input loop and takes over executions
 func RunShell() {
 
@@ -152,11 +159,16 @@ func RunShell() {
 			h, exists := commandsAll[cmd]
 			if exists {
 				h.Handler(cmdargs)
-			} else if t == "help" {
+			} else if cmd == "help" {
 				// help is special..
 				handleHelp(cmdargs)
-			} else if t != "" {
-				fmt.Printf("No such command: '%s'\n", cmd)
+			} else if cmd != "" {
+				aliasedCmd := searchAliases(cmd)
+				if aliasedCmd != nil {
+					aliasedCmd.Handler(cmdargs)
+				} else {
+					fmt.Printf("No such command: '%s'\n", cmd)
+				}
 			}
 		}
 	}
