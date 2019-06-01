@@ -4,10 +4,4 @@
   Scoot back in cmdline to correct an argument, tab knows how to complete
   *that* instead of just what's at the end of the line.
 
-
-- Improve aliases
-
-  1. Build a hash of aliases during command init/add for faster lookups, and
-  2. duplicate detection
-  3. Insert aliases into autocompleter
   
