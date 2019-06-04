@@ -129,12 +129,17 @@ func completer(d prompt.Document) []prompt.Suggest {
 		// Pop off the root command to figure out if we have a secondary
 		words := strings.Fields(cmdline)
 		root := words[0]
+		cur := words[len(words)-1]
 
 		if commandsAll[root].Secondary != nil {
-			cur := words[len(words)-1]
 			suggestions = commandsAll[root].Secondary(cur)
 		} else {
-			suggestions = &[]prompt.Suggest{}
+			acmd := aliasSearch(root)
+			if acmd != nil {
+				suggestions = acmd.Secondary(cur)
+			} else {
+				suggestions = &[]prompt.Suggest{}
+			}
 		}
 	} else if d.CursorPositionCol() == 1 {
 		// reset
